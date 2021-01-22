@@ -1,6 +1,6 @@
 # ECORRUPTION
 
-In [ECORRUPTION]https://pizanagd.itch.io/ecorruption you are the recently elected leader of your country. Now that you hold the power you must keep it by balancing three elements: Environment, Population and Business. 
+In [ECORRUPTION](https://pizanagd.itch.io/ecorruption) you are the recently elected leader of your country. Now that you hold the power you must keep it by balancing three elements: Environment, Population and Business. 
 
 
 
@@ -9,4 +9,4 @@ In [ECORRUPTION]https://pizanagd.itch.io/ecorruption you are the recently electe
 <img src="images/ecorruption/3.png">
 <img src="images/ecorruption/4.png">
 
-Itch.io: [Game link] https://pizanagd.itch.io/ecorruption
+Itch.io:  (https://pizanagd.itch.io/ecorruption)
