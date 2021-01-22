@@ -11,18 +11,15 @@
 <img src="images/motor/main.png?raw=true"/>
 
 ---
-### [Vulkan renderer](http://example.com/)
+### [Vulkan renderer (WIP)](http://example.com/)
 <img src="images/vulkan/main.png?raw=true"/>
 
 ---
 
-### Category Name 2
+### Web development work
 
-- [Project 1 Title](http://example.com/)
-- [Project 2 Title](http://example.com/)
-- [Project 3 Title](http://example.com/)
-- [Project 4 Title](http://example.com/)
-- [Project 5 Title](http://example.com/)
+- [Glissandoo](https://glissandoo.com/)
+
 
 ---
 
