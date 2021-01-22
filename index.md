@@ -3,7 +3,7 @@
 ---
 
 
-### [ECORRUPTION](/sample_page)
+### [ECORRUPTION](/ecorruption_page)
 <img src="images/ecorruption/1.png?raw=true"/>
 
 ---
