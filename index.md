@@ -2,9 +2,8 @@
 
 ---
 
-### Category Name 1 
 
-[Project 1 Title](/sample_page)
+### [ECORRUPTION](/sample_page)
 <img src="images/ecorruption/1.png?raw=true"/>
 
 ---
