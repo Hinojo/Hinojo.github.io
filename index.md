@@ -1,13 +1,14 @@
 ## Portfolio
 
 ---
-
+### [Master's thesis: MultiGPU Rendering]
+<img src="images/tfm/capturaSortFirst.png" />
 
 ### [ECORRUPTION](/ecorruption_page)
 <img src="images/ecorruption/1.png?raw=true"/>
 
 ---
-### [OpenGL renderer](/pdf/sample_presentation.pdf)
+### [OpenGL renderer](/opengl_page)
 <img src="images/motor/main.png?raw=true"/>
 
 ---
