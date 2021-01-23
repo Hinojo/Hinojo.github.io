@@ -9,4 +9,4 @@ In [ECORRUPTION](https://pizanagd.itch.io/ecorruption) you are the recently elec
 <img src="images/ecorruption/3.png">
 <img src="images/ecorruption/4.png">
 
-Itch.io:  (https://pizanagd.itch.io/ecorruption)
+[Link to the game] (https://pizanagd.itch.io/ecorruption)
