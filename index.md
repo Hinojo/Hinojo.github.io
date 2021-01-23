@@ -1,7 +1,7 @@
 ## Portfolio
 
 ---
-### [Master's thesis: MultiGPU Rendering](/tmf_page)
+### [Master's thesis: MultiGPU Rendering](/tfm_page)
 <img src="images/tfm/capturaSortFirst.png" />
 
 ### [ECORRUPTION](/ecorruption_page)
