@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+    <meta charset="utf-8">
+    <title> PGATR_PR1</title>
+
+    <script type="text/javascript" src="gl-matrix-min.js"></script>
+
+    <script type="text/javascript" src="shaderManager.js"></script>
+    <script type="text/javascript" src="utils.js"></script>
+    <script type="text/javascript" src="models.js"></script>
+	<script type="text/javascript" src="torus_tri.json"></script>
+	<script type="text/javascript" src="TriangleSphere.json"></script>
+	<script type="text/javascript" src="bunny.json"></script>
+    <script type="text/javascript" src="new_cube.json"></script>
+	<script type="text/javascript" src="dat.gui-master/build/dat.gui.js" ></script>
+
+    
+    <script id="vs" type="x-shader/x-vertex">#version 300 es
+        in vec3 position;
+        in vec3 color; 
+        in vec3 normal;
+        in vec2 textureCoordinates;
+        uniform  MatTransform
+        {
+            mat4 projectionMatrix;
+            mat4 viewMatrix;
+        };
+
+        //uniform mat4 projection;
+        //uniform mat4 view;
+        uniform mat4 model;
+        uniform mat4 normalMat;
+        
+
+        out vec3 vColor;
+        out vec3 vPos;
+		out vec3 vNormal;
+		out vec3 vCameraPos;
+        out vec2 v_texCoord;
+
+        void main(void) 
+        { 
+            v_texCoord = textureCoordinates;
+            gl_Position = projectionMatrix*viewMatrix*model*vec4(position, 1.);
+            vColor = color;
+            vPos = (viewMatrix * model * vec4(position, 1.)).xyz;
+			vNormal = (normalMat * vec4(normal, 0.)).xyz;
+            vCameraPos = vec3(viewMatrix[3][0], viewMatrix[3][1], viewMatrix[3][2]);
+        }
+    </script>
+
+    <script id="fs" type="x-shader/x-vertex">#version 300 es
+        precision mediump float;
+
+        in vec3 vColor;
+        in vec3 vPos;
+        in vec3 vNormal;
+        
+
+		vec3 LightPosition = vec3(0,0,0);
+		vec3 LightColor = vec3(1.,1.,1.);
+		vec3 AmbientColor = vec3(0.2, 0.2, 0.2);
+		
+        uniform float toonThreshold;
+        uniform float toonBorder;
+        
+
+        out vec4 outColor;
+		
+		vec4 shade ()
+		{
+			vec3 auxColor = vec3(0.1, 0.7, 0.3);
+			vec3 ambientComponent;
+			vec3 diffuseComponent;
+			vec3 specularComponent;
+			
+			float n = 100.;
+			
+			vec3 L = normalize( LightPosition- vPos);
+			vec3 N = normalize(vNormal);
+			vec3 R = reflect(-L, N);
+			vec3 V = normalize(-vPos);
+			
+			vec3 H = normalize((L + V) / 2.);
+			
+			ambientComponent = auxColor * AmbientColor;
+			
+			diffuseComponent = auxColor * LightColor * dot(L, N);
+			diffuseComponent = clamp(diffuseComponent, 0., 1.);
+			diffuseComponent = diffuseComponent * toonThreshold;
+			diffuseComponent = round(diffuseComponent) / toonThreshold;
+			diffuseComponent = clamp(diffuseComponent, 0.1, 1.);
+			
+			float factor = max(dot(N, H), 0.01);
+			specularComponent = LightColor * pow(factor, n);
+			specularComponent = specularComponent * toonThreshold;
+			specularComponent = round(specularComponent) / toonThreshold;
+			
+			
+			float product = dot(N, V);
+			if (product < toonBorder)
+			{
+                return vec4(0., 0., 0., 1.);
+                //En el modelo cargado, no tiene color el vertice,
+                //por lo que usamos el ambientColor directamente.
+                //return vec4(auxColor, 1.);
+			}
+			
+			return vec4(ambientComponent + diffuseComponent + specularComponent, 1.);
+		}
+		
+        void main(void) 
+        {
+			outColor = shade();
+        }
+		
+		
+    </script>
+
+    <script id="fsSampling" type="x-shader/x-vertex">#version 300 es
+        precision highp float;
+
+        struct Material
+        {
+            sampler2D diffuse[2];
+        };
+        uniform Material material;
+
+        in vec3 vColor;
+        in vec3 vPos;
+        in vec3 vNormal;
+        
+
+		vec3 LightPosition = vec3(0,0,0);
+		vec3 LightColor = vec3(1.,1.,1.);
+		vec3 AmbientColor = vec3(0.2, 0.2, 0.2);
+        
+        uniform float toonThreshold;
+        uniform float toonBorder;
+        uniform bool textured;
+        
+        
+        in highp vec2 v_texCoord;
+
+        
+        out vec4 outColor;
+		
+		vec4 shade ()
+		{
+			vec3 auxColor = vec3(0.1, 0.7, 0.3);
+			vec3 ambientComponent;
+			vec3 diffuseComponent;
+			vec3 specularComponent;
+			
+			float n = 100.;
+			
+			vec3 L = normalize( LightPosition- vPos);
+			vec3 N = normalize(vNormal);
+			vec3 R = reflect(-L, N);
+			vec3 V = normalize(-vPos);
+			
+			vec3 H = normalize((L + V) / 2.);
+			
+			ambientComponent = auxColor * AmbientColor;
+            
+            
+            
+            diffuseComponent = auxColor * LightColor * dot(L, N);
+            diffuseComponent = clamp(diffuseComponent, 0., 1.);
+            diffuseComponent = diffuseComponent * toonThreshold;
+            diffuseComponent = round(diffuseComponent) / toonThreshold;
+            diffuseComponent = clamp(diffuseComponent, 0.1, 1.);
+            
+            float factor = max(dot(N, H), 0.01);
+            specularComponent = LightColor * pow(factor, n);
+            specularComponent = specularComponent * toonThreshold;
+            specularComponent = round(specularComponent) / toonThreshold;
+                        
+            float product = dot(N, V);
+            if (product < toonBorder)
+            {
+                return vec4(0., 0., 0., 1.);
+                //En el modelo cargado, no tiene color el vertice,
+                //por lo que usamos el ambientColor directamente.
+                //return vec4(auxColor, 1.);
+            }
+        
+			return vec4(ambientComponent + diffuseComponent + specularComponent, 1.);
+		}
+		
+        void main(void) 
+        {
+            vec4 color_texture;
+            if (v_texCoord.y + v_texCoord.x < 1.0)
+            {
+                 color_texture = texture(material.diffuse[0], v_texCoord * vec2 (2.0, 2.0));
+            }
+            else
+            {
+                color_texture = texture(material.diffuse[1], v_texCoord * vec2 (2.0, 2.0));
+            }
+            
+            if (textured)
+            {
+                outColor =  color_texture;
+            }
+            else 
+            {
+                outColor = shade();
+            }
+        }
+		
+		
+    </script>
+    
+
+</head>
+<body>
+    <div>
+        <canvas id="glCanvas"></canvas>
+    </div>
+<img  src ="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAMAAABrrFhUAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAIGNIUk0AAHolAACAgwAA+f8AAIDpAAB1MAAA6mAAADqYAAAXb5JfxUYAAAEvUExURV81KWI2KWU3Kmc5LGs7LWs7L2w8MG09L249L3FAMXM/MXZDMndEM3hENnlENntGNnxENX1FNH1FNn1FOH5DNX5ENn5GN39FN4BGOIBHNoFIN4JJOINKOYVKOodMOohLOIlMOopNO4xNPI1OPY9NPY9QP5JRP5RTQZZTQpaHgJiFf5lURJlVQplWQ5pVRZpWQZpWQ5tXRJtYRZuIgpuIhJxVQZxVQ5xYRZyJg5yLhJ2Kg52KhJ2Khp2MhZ6JhJ6LhZ6MiJ6Nhp9YRp+Mhp+MiKCLhqCPiKJZSKOSi6VaR6ZaSqZbSKZeRqpdSapeR6uYkquYlKyZk62ZmK2el62ema6bl6+clq+el7BiS7Ccm7Cdl7FjTbGgmbJkTbKfmbKhmrShm7WknbajnbeknremnwLTjwgAAAMJSURBVHja7d1Ht9VUGIDhKwoqTTlIb1IUUdFDL5eigKgIKAgq0sv//w3MXwZ7ZTHM8073SXLyDLPyZa8s09ep6/fS9+lk+ir9kXr+O+lw+jf1+Fvph9TfrwAAAAAAAAAAAAAAAAAAAAAzBFgM2pfepP9Sj/8kfZi2pQ1pT/o79YZ2pP6frgMAAAAAAAAAAAAAAAAAAAAAFotDaV3qA4mzqRfoDa5Pvf6W1PUHaXfqA5gefyQBAAAAAAAAAAAAAAAAAAAAcwS4mW6kC+lZWk1XU9dPp65fT11/mbp+MZ1KvyUAAAAAAAAAAAAAAAAAAABgjgAH0pm0nFgHLo6nPlD5PXWg4lpavmcPEwAAAAAAAAAAAAAAAAAAADBHgP6gLxT0AwldX5u6vimNPoDQ4z9Nn6ePU4//LD1JAAAAAAAAAAAAAAAAAAAAAIDl8oO0P/WDCB1wWJP6h16k26nn35s2psXE/kkAAAAAAAAAAAAAAAAAAADAHAFWJ9YBikupAw/nUx9IjK7XgYfV9+ydByIAAAAAAAAAAAAAAAAAAADADAGmDiR0g4NvUl+o+DU9TlOvP3rBoj1NXyQAAAAAAAAAAAAAAAAAAABgjgDb0+gFg/vpaBod3wGGbuh4MG1Of6be8Jdp9H8AAAAAAAAAAAAAAAAAAACAOQKMDujAxKs0+gDCSup6N3Tck/r7fhCxGz72AwsFBgAAAAAAAAAAAAAAAAAAAAAshgMT36YOHFxJHaiYOtBwOfV8z1MHNrqB5GiDRwAAAAAAAAAAAAAAAAAAAGCOAOdSBxjuph/Td2m0AeNfqS9YdKCi5+sGjh3Y6O97f68TAAAAAAAAAAAAAAAAAAAAMEeA0QsOHVjo+rY02pCxAL3+6Hpb0+j/7Ez/JwAAAAAAAAAAAAAAAAAAAGCOAB04+CiNBg6m9iidSFPP1wGLfqBhV+oHGQEAAAAAAAAAAAAAAAAAAIA5AnSAoAMIx9JPqcf/nEYbHv6Spm64OLpeBy7uJQAAAAAAAAAAAAAAAAAAAGCGAG8BX4erpD7OmbEAAAAASUVORK5CYII=" id="fractalImage" style="display:none;">
+<script type="text/javascript"> 
+
+    //fractal code:  data:image/png;base64,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
+        
+    //http://glmatrix.net/docs/module-mat4.html
+    var canvas;
+
+    var shaderProgram;
+    var shaderProgram_sampler;
+    var projectionLoc, viewLoc, modelLoc;
+    var colorLoc, positionLoc;
+
+    var perspMat, viewMat, modelMat;
+
+    //Cube variables
+   var meshVertexsCube;
+    var meshIndexsCube;
+
+    var vertexBuffCube;
+    var indexBuffCube;
+
+    var meshVertices;
+    var meshNormals;
+    var meshIndices;
+
+    var vertexBuffer;
+    var indexBuffer;
+    var normalBuffer;
+
+    var ubo;
+    var vao;
+
+    //texture
+    var texture;
+    var textureBuffer;
+    var textureLoc;
+    var bool_TextureLoaded;
+
+    //una textura, dos samplers
+    var sampler_good;
+    var sampler_bad;
+
+    var uniformDiffuse0Loc;
+    var uniformDiffuse1Loc;
+
+    //JSON Loading
+    var bizarreSpikeJSON; 
+    var BizarreSpikeVertices;
+    var BizarreSpikeNormals;
+    var BizarreSpikeIndices;
+
+    var CubeUV;
+    var cubeUVLoc;
+    var cubeUVBuffer;
+
+    var textured;
+    var texturedUniform;
+
+    //UI variables
+    var toonThresholdLoc;
+    var toonThresholdValue;
+
+    var toonBorderLoc;
+    var toonBorderValue;
+
+    var drag    = false;
+    var prevX=0, prevY=0, dX=0, dY=0, rotX=0, rotY=0;
+
+
+    function resize(canvas)
+    {
+        var displayHeight = canvas.clientHeight;
+        var displayWidth =  canvas.clientWidth;
+
+        if (canvas.width !== displayWidth ||
+            canvas.height !== displayHeight)
+            {
+               canvas.width = displayWidth;
+               canvas.height = displayHeight;
+            }
+
+    }
+
+     //UI FUNCTIONS
+     var UIVariables = function()
+    {
+        this.toonThreshold = 5.0;
+        this.toonBorder = 0.3;
+        this.Current_Model = 'CubeUV';
+    };
+
+    function mouseDown(e) 
+    {
+        drag = true;
+        prevX = e.pageX;
+        prevY = e.pageY;
+        e.preventDefault();
+    };
+ 
+    function mouseUp(e)
+    {
+        drag=false;
+    };
+  
+    function mouseMove(e) 
+    {
+        if (drag)
+        {
+            dX  =   (e.pageX-prevX)*2*Math.PI/canvas.width,
+            dY  =   (e.pageY-prevY)*2*Math.PI/canvas.height;
+            rotX += dX;
+            if ( Math.abs(rotY+dY) < (Math.PI/2.0) ) rotY+=dY;
+            prevX = e.pageX;
+            prevY = e.pageY;
+            e.preventDefault();
+        }
+    };
+	
+	function keyPressed(e)
+    {
+  
+        if (e.key ==="w") {
+            glMatrix.mat4.translate(viewMat, viewMat, glMatrix.vec3.fromValues(0, 0, 0.5));
+        }
+
+        if (e.key === "d") {
+            glMatrix.mat4.translate(viewMat, viewMat, glMatrix.vec3.fromValues(-0.5, 0, 0));
+        }
+        if (e.key === "s") {
+            glMatrix.mat4.translate(viewMat, viewMat, glMatrix.vec3.fromValues(0, 0, -0.5));
+        }
+        if (e.key === "a") {
+            glMatrix.mat4.translate(viewMat, viewMat, glMatrix.vec3.fromValues(0.5, 0, 0));
+        }
+        
+    }
+
+   
+
+    fLoadTexture = function(name, img, gl)
+    {
+        textureBuffer = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, textureBuffer);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+        //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+        gl.generateMipmap(gl.TEXTURE_2D);
+        gl.bindTexture(gl.TEXTURE_2D, null);
+        bool_TextureLoaded = 1;
+    }     
+
+
+    //Init function
+    function init( )    
+    {
+        bool_TextureLoaded = 0;
+        
+        canvas = document.getElementById( "glCanvas" ); 
+        canvas.width    = window.innerWidth;
+        canvas.height   = window.innerHeight;    
+        
+        //UI Functions
+        var gui = new dat.GUI();
+        var uiFunction = new UIVariables();
+        var controller_ToonThreshold = gui.add( uiFunction, 'toonThreshold', 0.01, 20);
+        var controller_ToonBorder = gui.add(uiFunction, 'toonBorder', 0.0, 1.0);
+        var controller_currentModel = gui.add(uiFunction, 'Current_Model', ['torus', 'icosphere', 'bunny', 'CubeUV']);
+
+
+        controller_ToonThreshold.onChange(function(value)
+        {
+            toonThresholdValue = value;
+        });
+
+        controller_ToonBorder.onChange(function(value)
+        {
+            toonBorderValue = value;
+        });
+
+        controller_currentModel.onFinishChange(function(value)
+        {
+            gl.deleteBuffer(vertexBuffer);
+            gl.deleteBuffer(normalBuffer);
+            gl.deleteBuffer(indexBuffer);
+            gl.deleteBuffer(cubeUVBuffer);
+
+            if (cubeUVLoc !== -1)
+            {
+                gl.disableVertexAttribArray(cubeUVLoc);
+            }            
+
+            if (value === 'torus')
+            {
+                meshVertices = torus_tri.vertices[0].values;
+	            meshNormals = torus_tri.vertices[1].values;
+                meshIndices = torus_tri.connectivity[0].indices;
+                cubeUVLoc = -1;  
+                textured = false;
+            }
+            else if (value === 'icosphere')
+            {
+				meshVertices = triangleSphere.meshes[0].vertices;
+	            meshNormals = triangleSphere.meshes[0].normals;
+                meshIndices = [].concat.apply([], triangleSphere.meshes[0].faces);
+                cubeUVLoc = -1;  
+                textured = false;
+            }
+			else if (value === 'bunny')
+			{
+				meshVertices = bunny.vertices[0].values;
+	            meshNormals = bunny.vertices[1].values;
+                meshIndices = bunny.connectivity[0].indices;
+                cubeUVLoc = -1;    
+                textured = false;
+			}
+            else if (value === "CubeUV")
+            {
+                meshVertices = new_cube.vertices;
+                meshNormals =  new_cube.normals;
+                meshIndices =  new_cube.faces;
+                CubeUV =  new_cube.uvs;
+                cubeUVLoc = gl.getAttribLocation(shaderProgram.program, "textureCoordinates");
+                textured = true;
+            }
+            
+            vertexBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(meshVertices), gl.STATIC_DRAW);
+            gl.vertexAttribPointer(positionLoc, 3, gl.FLOAT, false, 0, 0 ) ;
+            gl.enableVertexAttribArray(positionLoc);
+
+
+            normalBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(meshNormals), gl.STATIC_DRAW );
+            gl.vertexAttribPointer(normalLoc, 3, gl.FLOAT, false, 0, 0 ) ;
+            gl.enableVertexAttribArray(normalLoc);
+
+            indexBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(meshIndices), gl.STATIC_DRAW);
+
+
+            if (cubeUVLoc !== -1)
+            {
+                cubeUVBuffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, cubeUVBuffer);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(CubeUV), gl.STATIC_DRAW);    
+                gl.vertexAttribPointer(cubeUVLoc, 2, gl.FLOAT, false, 0,0);
+                gl.enableVertexAttribArray(cubeUVLoc);
+            }
+
+        });
+        
+        //Context Inicialization
+        try 
+        {
+            gl = canvas.getContext("webgl2");
+        } catch (e) 
+        {
+            alert("Your browser is not webgl2 compatible!!!") ;
+            throw "Unable to initialize WebGL2 context";
+        }
+
+        //Add events
+        canvas.addEventListener( "mousedown", mouseDown, false );
+        canvas.addEventListener( "mouseup", mouseUp, false );
+        canvas.addEventListener( "mouseout", mouseUp, false );
+        canvas.addEventListener( "mousemove", mouseMove, false );
+		document.addEventListener("keydown", keyPressed, false);
+
+        //Shader inicialization
+        shaderProgram = new ShaderManager( );
+        shaderProgram.createShader( document.getElementById( "vs" ).text, gl.VERTEX_SHADER );
+        shaderProgram.createShader( document.getElementById( "fsSampling" ).text, gl.FRAGMENT_SHADER );
+                       
+        shaderProgram.createProg( );
+        shaderProgram.linkProg( );
+        shaderProgram.useProg( );
+
+
+
+        //UBO
+        var uboSize = 4 * 16 * 2; //Two 4x4 float matrices
+        ubo = gl.createBuffer();
+        var uboBlockPoint = 0;
+        gl.bindBuffer(gl.UNIFORM_BUFFER, ubo);
+        gl.bufferData(gl.UNIFORM_BUFFER, uboSize, gl.DYNAMIC_DRAW);
+        gl.bindBuffer(gl.UNIFORM_BUFFER, null);
+        gl.bindBufferBase(gl.UNIFORM_BUFFER, uboBlockPoint, ubo);
+
+        //VAO
+        vao = gl.createVertexArray();
+
+        positionLoc   = gl.getAttribLocation(shaderProgram.program, "position");
+        normalLoc = gl.getAttribLocation(shaderProgram.program, "normal");
+        cubeUVLoc = gl.getAttribLocation(shaderProgram.program, "textureCoordinates");
+
+        gl.bindVertexArray(vao);
+       
+        
+        BizarreSpikeVertices = new_cube.vertices;
+        BizarreSpikeNormals =  new_cube.normals;
+        BizarreSpikeIndices =  new_cube.faces;
+        CubeUV =  new_cube.uvs;
+        
+        meshVertices = BizarreSpikeVertices;
+		meshIndices = BizarreSpikeIndices;
+		meshNormals = BizarreSpikeNormals;        
+
+		vertexBuffer = gl.createBuffer();
+		gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(meshVertices), gl.STATIC_DRAW);
+        gl.vertexAttribPointer(positionLoc, 3, gl.FLOAT, false, 0, 0 ) ;
+        gl.enableVertexAttribArray(positionLoc);
+
+		normalBuffer = gl.createBuffer();
+		gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(meshNormals), gl.STATIC_DRAW );
+        gl.vertexAttribPointer(normalLoc, 3, gl.FLOAT, false, 0, 0 ) ;
+        gl.enableVertexAttribArray(normalLoc);
+
+        if (cubeUVLoc !== -1)
+        {
+            cubeUVBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, cubeUVBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(CubeUV), gl.STATIC_DRAW);    
+            gl.vertexAttribPointer(cubeUVLoc, 2, gl.FLOAT, false, 0,0);
+            gl.enableVertexAttribArray(cubeUVLoc);
+        }
+
+		indexBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(BizarreSpikeIndices), gl.STATIC_DRAW);
+           
+        textured = true;
+
+        //Attach Matrices
+        projLoc = gl.getUniformLocation(shaderProgram.program, "projection");
+        viewLoc = gl.getUniformLocation(shaderProgram.program, "view");
+        modelLoc = gl.getUniformLocation(shaderProgram.program, "model");
+        normalMatLoc = gl.getUniformLocation(shaderProgram.program, "normalMat");
+      
+        //LOAD TEXTURE
+        
+        fLoadTexture("testName", document.getElementById("fractalImage"), gl);
+
+        sampler_good = gl.createSampler();
+        gl.samplerParameteri(sampler_good, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+        gl.samplerParameteri(sampler_good, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.samplerParameteri(sampler_good, gl.TEXTURE_WRAP_S, gl.REPEAT);
+        gl.samplerParameteri(sampler_good, gl.TEXTURE_WRAP_T, gl.REPEAT);
+        gl.samplerParameteri(sampler_good, gl.TEXTURE_WRAP_R, gl.REPEAT);
+        gl.samplerParameteri(sampler_good, gl.TEXTURE_MIN_LOD, -100.0);
+        gl.samplerParameteri(sampler_good, gl.TEXTURE_MAX_LOD, 100.0);
+        gl.samplerParameteri(sampler_good, gl.TEXTURE_COMPARE_MODE, gl.NONE);
+        gl.samplerParameteri(sampler_good, gl.TEXTURE_COMPARE_FUNC, gl.EQUAL);
+
+        sampler_bad = gl.createSampler();
+        gl.samplerParameteri(sampler_bad, gl.TEXTURE_MIN_FILTER, gl.NEAREST_MIPMAP_NEAREST);
+        gl.samplerParameteri(sampler_bad, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.samplerParameteri(sampler_bad, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.samplerParameteri(sampler_bad, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.samplerParameteri(sampler_bad, gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE);
+        gl.samplerParameteri(sampler_bad, gl.TEXTURE_MIN_LOD, -100.0);
+        gl.samplerParameteri(sampler_bad, gl.TEXTURE_MAX_LOD, 100.0);
+        gl.samplerParameteri(sampler_bad, gl.TEXTURE_COMPARE_MODE, gl.NONE);
+        gl.samplerParameteri(sampler_bad, gl.TEXTURE_COMPARE_FUNC, gl.EQUAL);
+
+        uniformDiffuse0Loc = gl.getUniformLocation(shaderProgram.program, 'material.diffuse[0]');
+        uniformDiffuse1Loc = gl.getUniformLocation(shaderProgram.program, 'material.diffuse[1]');
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, textureBuffer);
+        gl.bindSampler(uniformDiffuse0Loc, sampler_good);
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, textureBuffer);
+        gl.bindSampler(uniformDiffuse1Loc, sampler_bad);
+
+        texturedUniform = gl.getUniformLocation(shaderProgram.program, 'textured');
+        
+        // // //Cube
+        // meshVertexsCube = cubeVertices; //triVertices;
+        // meshIndexsCube = cubeFaces; //triFaces;
+		// vertexNormals = cubeNormals;
+        
+        // vertexBuffCube = gl.createBuffer ();
+        // gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffCube);
+        // gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(meshVertexsCube),gl.STATIC_DRAW);
+		
+		// normalBuffCube = gl.createBuffer();
+		// gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffCube);
+		// gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertexNormals), gl.STATIC_DRAW);
+		
+        // indexBuffCube= gl.createBuffer ();
+        // gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffCube);
+        // gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(meshIndexsCube), gl.STATIC_DRAW);
+            
+		
+        //Matrices setup
+        perspMat = glMatrix.mat4.create();
+        glMatrix.mat4.perspective(perspMat, 45, canvas.width/canvas.height, 0.01, 30);
+        modelMat = glMatrix.mat4.create();
+        viewMat = glMatrix.mat4.create();
+        glMatrix.mat4.fromTranslation(viewMat, glMatrix.vec3.fromValues(0, 0, -5));
+
+        //gl.uniformMatrix4fv(projLoc, false, perspMat);
+        //gl.uniformMatrix4fv(viewLoc, false, viewMat);
+        gl.bindBuffer(gl.UNIFORM_BUFFER, ubo);
+        gl.bufferSubData(gl.UNIFORM_BUFFER, 0, new Float32Array(perspMat), 0, null);
+        gl.bufferSubData(gl.UNIFORM_BUFFER, 4 * 16, new Float32Array(viewMat), 0, null);
+
+        //UI variables setup
+        toonThresholdValue = 5.0;
+        toonThresholdLoc = gl.getUniformLocation(shaderProgram.program, "toonThreshold");
+        gl.uniform1f(toonThresholdLoc, toonThresholdValue);
+
+        toonBorderValue = 0.3;
+        toonBorderLoc = gl.getUniformLocation(shaderProgram.program, "toonBorder");
+        gl.uniform1f(toonBorderLoc, toonBorderValue);
+
+        //Prepare render
+        gl.enable(gl.DEPTH_TEST);
+        gl.depthFunc(gl.LEQUAL);
+        gl.clearColor(0.0, 0.0, 0.0, 0.0);
+        gl.clearDepth(1.0);
+    }
+
+    //Draw funtion
+    function draw (time) 
+    {
+        if (!drag) dX=dY=0;
+        
+        //Matrix updates
+        glMatrix.mat4.identity(modelMat);
+        glMatrix.mat4.fromYRotation(modelMat, rotX);
+        glMatrix.mat4.rotate(modelMat, modelMat, rotY, glMatrix.vec3.fromValues(1, 0, 0));
+  
+		var normalMat = glMatrix.mat4.create();
+		normalMat = glMatrix.mat4.multiply(normalMat, viewMat, modelMat);
+		normalMat = glMatrix.mat4.invert(normalMat, normalMat);
+		normalMat = glMatrix.mat4.transpose(normalMat, normalMat);
+  
+        resize(gl.canvas);
+        
+        //Rendering
+        gl.viewport(0.0, 0.0, canvas.width, canvas.height);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+        gl.uniformMatrix4fv(modelLoc, false, modelMat);
+		//gl.uniformMatrix4fv(viewLoc, false, viewMat);
+        gl.uniformMatrix4fv(normalMatLoc, false, normalMat);
+
+         gl.bindBuffer(gl.UNIFORM_BUFFER, ubo);
+        gl.bufferSubData(gl.UNIFORM_BUFFER, 0, new Float32Array(perspMat), 0, null);
+        gl.bufferSubData(gl.UNIFORM_BUFFER, 4 * 16, new Float32Array(viewMat), 0, null);
+
+        //UI VARIABLES        
+        gl.uniform1f(toonThresholdLoc, toonThresholdValue);
+        gl.uniform1f(toonBorderLoc, toonBorderValue);
+
+        //TEXTURE AND SAMPLING
+        
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, textureBuffer);
+        gl.bindSampler(uniformDiffuse0Loc, sampler_good);
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, textureBuffer);
+        gl.bindSampler(uniformDiffuse1Loc, sampler_bad);
+
+        gl.uniform1i(uniformDiffuse0Loc, 0);
+        gl.uniform1i(uniformDiffuse1Loc, 1);
+
+        gl.uniform1i(texturedUniform, textured);
+        
+
+        if (meshIndices !== null && meshIndices !== undefined && bool_TextureLoaded === 1)
+        {
+            //Bindeamos el array buffer activo para que sea el de indices de BizarreSpike
+            //gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+            gl.bindVertexArray(vao);
+            gl.drawElements(gl.TRIANGLES, meshIndices.length , gl.UNSIGNED_SHORT, 0);
+        }
+
+       
+        // //Cube
+        // //Manejamos propiedades del vertex Buffer del cubo
+        // gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffCube);
+
+        // //https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/vertexAttribPointer
+        // var meshElementSize = 4*(3+3); //4 bytes * (pos + color)
+        // var meshColorOffset = 4*3; //4 bytes * (pos)
+        // gl.vertexAttribPointer(positionLoc, 3, gl.FLOAT, false, meshElementSize,   0 ) ;
+        // gl.vertexAttribPointer(colorLoc, 3, gl.FLOAT, false,  meshElementSize, meshColorOffset ) ;
+
+        // //Manejamos propiedades del normal Buffer del cubo
+        // gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffCube);
+        // gl.vertexAttribPointer(normalLoc, 3, gl.FLOAT, false, 0, 0);
+
+        // gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffCube);
+        // gl.drawElements(gl.TRIANGLES, meshIndexsCube.length , gl.UNSIGNED_SHORT, 0);
+
+        gl.flush();
+        window.requestAnimationFrame(draw);
+    };
+
+    init();
+    draw(0);
+
+</script>
+</body>
+</html>
